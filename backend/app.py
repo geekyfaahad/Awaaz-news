@@ -3,6 +3,7 @@
 
 
 from flask import Flask, render_template, request, jsonify, send_from_directory, session, redirect, url_for
+from flask_cors import CORS
 from cryptography.fernet import Fernet
 import aiohttp
 import asyncio
@@ -53,6 +54,7 @@ _load_dotenv_file()
 
 app = Flask(__name__)
 app.secret_key = 'sdfsd232@!43f2!sad'  # Change this to a secure secret key
+CORS(app)
 Compress(app)
 
 # Firebase configuration

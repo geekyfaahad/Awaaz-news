@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+const API_BASE = import.meta.env.VITE_BACKEND_URL || '';
+
 const Home: React.FC = () => {
   const navigate = useNavigate();
   const [city, setCity] = useState('');
@@ -52,7 +54,7 @@ const Home: React.FC = () => {
       const params = new URLSearchParams({ filter, scope });
       if (city.trim()) params.set('city', city.trim());
       
-      const response = await fetch(`/api/news?${params.toString()}`);
+      const response = await fetch(`${API_BASE}/api/news?${params.toString()}`);
       const data = await response.json();
 
       if (data.success) {
@@ -104,7 +106,7 @@ const Home: React.FC = () => {
     setAskAiLoading(true);
 
     try {
-      const res = await fetch('/api/ask-ai', {
+      const res = await fetch(`${API_BASE}/api/ask-ai`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text }),
@@ -133,7 +135,7 @@ const Home: React.FC = () => {
   const runXSearch = async (originalText: string, headlinesCount: number) => {
     setAskAiLoading(true);
     try {
-      const xRes = await fetch('/api/ask-ai', {
+      const xRes = await fetch(`${API_BASE}/api/ask-ai`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
