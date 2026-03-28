@@ -26,7 +26,7 @@ function App() {
 
       <footer className="footer">
         <div className="container">
-          <p className="mb-0">© 2025 Awaaz News Foundation | Empowering Truth in the Valley</p>
+          <p className="mb-0">© 2026 Awaaz News  | Empowering Truth in the Valley</p>
         </div>
       </footer>
     </Router>

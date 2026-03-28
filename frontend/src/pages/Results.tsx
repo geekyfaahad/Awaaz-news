@@ -177,7 +177,7 @@ const Results: React.FC = () => {
       )}
 
       <footer className="text-center mt-5 pt-5 border-top border-light opacity-50">
-        <p className="small text-muted mb-0">© 2025 Awaaz News Foundation | Empowering Truth in the Valley</p>
+        <p className="small text-muted mb-0">© 2026 Awaaz News  | Empowering Truth in the Valley</p>
       </footer>
     </div>
   );
