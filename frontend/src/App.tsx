@@ -12,7 +12,7 @@ function App() {
             <a href="/" className="logo-link">
               <h1 className="logo">Awaaz</h1>
             </a>
-            <p className="tagline">The Digital Pulpit of Kashmir News Literacy</p>
+            <p className="tagline">Trust Issues? Same. We Verify</p>
           </div>
         </div>
       </header>

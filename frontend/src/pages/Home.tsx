@@ -11,7 +11,6 @@ const Home: React.FC = () => {
   const [askAiMessages, setAskAiMessages] = useState<any[]>([]);
   const [askAiLoading, setAskAiLoading] = useState(false);
   const [askAiModeHint, setAskAiModeHint] = useState('');
-  const [showXOffer, setShowXOffer] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const CITY_STORAGE_KEY = 'awaaz_user_city';
@@ -26,7 +25,22 @@ const Home: React.FC = () => {
   };
 
   useEffect(() => {
-    scrollToBottom();
+    if (askAiMessages.length > 0) {
+      const lastMsg = askAiMessages[askAiMessages.length - 1];
+      if (!lastMsg.isUser) {
+        // Scroll to the start of the latest AI response bubble
+        const container = document.querySelector('.ask-ai-messages');
+        const botWrappers = container?.querySelectorAll('.msg-wrapper--bot');
+        const latestBotWrapper = botWrappers?.[botWrappers.length - 1];
+        if (latestBotWrapper) {
+          latestBotWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+          scrollToBottom();
+        }
+      } else {
+        scrollToBottom();
+      }
+    }
   }, [askAiMessages]);
 
   const handleGetNews = async (e: React.FormEvent) => {
@@ -77,8 +91,8 @@ const Home: React.FC = () => {
     return null;
   };
 
-  const appendMessage = (content: string, isUser: boolean, status: string | null = null, headlines: any[] = []) => {
-    setAskAiMessages(prev => [...prev, { content, isUser, status, headlines }]);
+  const appendMessage = (content: string, isUser: boolean, status: string | null = null, headlines: any[] = [], xOffer: boolean = false, headlinesCount: number = 0) => {
+    setAskAiMessages(prev => [...prev, { content, isUser, status, headlines, xOffer, headlinesCount }]);
   };
 
   const handleAskAi = async () => {
@@ -88,7 +102,6 @@ const Home: React.FC = () => {
     setAskAiInput('');
     appendMessage(text, true);
     setAskAiLoading(true);
-    setShowXOffer(false);
 
     try {
       const res = await fetch('/api/ask-ai', {
@@ -100,16 +113,12 @@ const Home: React.FC = () => {
       
         if (data.success && data.reply) {
           const msgStatus = getStatusFromContent(data.reply);
-          appendMessage(data.reply, false, msgStatus, data.headlines || []);
+          appendMessage(data.reply, false, msgStatus, data.headlines || [], data.offer_x_search && data.x_search_available, data.headlines_count || 0);
           updateModeHint(data);
 
-        if (data.offer_x_search && data.x_search_available) {
-          if ((data.headlines_count || 0) === 0) {
+        if (data.offer_x_search && data.x_search_available && (data.headlines_count || 0) === 0) {
             appendMessage("Google News had no article matches. Automatically searching on X.com...", false);
             await runXSearch(text, 0);
-          } else {
-            setShowXOffer(true);
-          }
         }
       } else {
         appendMessage(data.message || 'Something went wrong.', false);
@@ -136,16 +145,15 @@ const Home: React.FC = () => {
       const xData = await xRes.json();
       if (xData.success && xData.reply) {
         const xStatus = getStatusFromContent(xData.reply);
-        appendMessage(xData.reply, false, xStatus, xData.headlines || []);
+        appendMessage(xData.reply, false, xStatus, xData.headlines || [], false);
         setAskAiModeHint('X.com via Apify — social posts are not proof.');
       } else {
-        appendMessage(xData.message || 'X search failed.', false);
+        appendMessage(xData.message || 'X search failed.', false, null, [], false);
       }
     } catch (err) {
       appendMessage('X search request failed.', false);
     } finally {
       setAskAiLoading(false);
-      setShowXOffer(false);
     }
   };
 
@@ -329,6 +337,30 @@ const Home: React.FC = () => {
                           </div>
                         </div>
                       )}
+                      {msg.xOffer && (
+                        <div className="ask-ai-x-offer mt-3 shadow-sm border-0" style={{ margin: '0 0 -5px 0' }}>
+                          <p className="small text-muted mb-2 fw-medium">
+                            <i className="fa-brands fa-x-twitter me-2"></i> 
+                            {msg.headlinesCount > 0 
+                              ? "Want more perspectives from social media?" 
+                              : "No official coverage found. Try social feed?"}
+                          </p>
+                          <button 
+                            className="btn btn-outline-primary btn-sm py-2 px-3"
+                            style={{ borderRadius: '10px', fontSize: '0.85rem' }}
+                            onClick={() => {
+                              // Find the most recent user question before this message
+                              const userMsg = [...askAiMessages].reverse().find((m, idx, arr) => {
+                                const originalIdx = arr.length - 1 - idx;
+                                return originalIdx < askAiMessages.indexOf(msg) && m.isUser;
+                              });
+                              if (userMsg) runXSearch(userMsg.content, msg.headlinesCount);
+                            }}
+                          >
+                            Investigate on X.com
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -340,20 +372,6 @@ const Home: React.FC = () => {
                 <div ref={messagesEndRef} />
               </div>
 
-              {showXOffer && (
-                <div className="ask-ai-x-offer mb-3 shadow-sm border-0">
-                  <p className="small text-muted mb-2 fw-medium">
-                    <i className="fa-brands fa-x-twitter me-2"></i> No official coverage found. Try social feed?
-                  </p>
-                  <button 
-                    className="btn btn-outline-primary btn-sm py-2 px-3"
-                    style={{ borderRadius: '10px', fontSize: '0.85rem' }}
-                    onClick={() => runXSearch(askAiMessages[askAiMessages.length-2].content, 1)}
-                  >
-                    Investigate on X.com
-                  </button>
-                </div>
-              )}
 
               <div className="mt-auto">
                 <div className="position-relative">

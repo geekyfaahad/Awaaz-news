@@ -1545,11 +1545,11 @@ def _format_google_news_ask_ai_reply(
         )
 
     return (
+        f"{status_para}\n\n"
         f"Using **Google News** (same feed type as “Get Briefing”), we searched:\n\"{display_q}\"\n\n"
         f"**Found {len(items)} headline(s).** Sample:\n\n{block}\n\n"
         "Headlines were analyzed using **semantic verification** to check if they actually "
         "confirm your specific claim (not just keyword overlap)."
-        f"{status_para}"
     )
 
 
@@ -1659,7 +1659,7 @@ def _gemini_news_reply(
             "maxOutputTokens": 700,
         },
     }
-    model = (os.environ.get("GEMINI_MODEL") or "gemini-2.5-flash").strip()
+    model = (os.environ.get("GEMINI_MODEL") or "gemini-1.5-flash").strip()
     resp = requests.post(
         f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
         headers={
