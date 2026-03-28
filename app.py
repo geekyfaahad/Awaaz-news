@@ -667,7 +667,8 @@ async def fetch_news(time_range, extract_images=True, city=None):
 
             logger.info(f"Google News RSS returned {len(news_items_data)} items after basic filters")
 
-            max_articles = 40
+            # Optimization: Limit to 20 articles for 4x faster response times
+            max_articles = 20 if not location_mode else 12 
             news_items_data = news_items_data[:max_articles]
 
             def is_from_international_domain(article_link):
@@ -707,7 +708,8 @@ async def fetch_news(time_range, extract_images=True, city=None):
                 summary = article_data.get("summary", "No summary available")
                 pub_url = (article_data.get("publisher_article_url") or "").strip()
                 page_url = pub_url or normalize_google_news_article_url(article_data.get("link") or "")
-                fetch_timeout = aiohttp.ClientTimeout(total=28, sock_read=22)
+                # Optimization: Tight 10-second timeout for article metadata
+                fetch_timeout = aiohttp.ClientTimeout(total=10, connect=3, sock_read=7)
 
                 try:
                     async with session.get(page_url, headers=headers, timeout=fetch_timeout) as article_response:
@@ -829,7 +831,8 @@ async def fetch_news(time_range, extract_images=True, city=None):
                 return {**out, "image": image_url, "summary": summary}
 
             if news_items_data and extract_images:
-                semaphore = asyncio.Semaphore(5)
+                # Optimization: High-concurrency (15 parallel requests)
+                semaphore = asyncio.Semaphore(15)
 
                 async def extract_with_semaphore(item):
                     async with semaphore:
@@ -887,9 +890,8 @@ NEWS_ASSISTANT_SYSTEM = """You are a careful news literacy assistant. Users ask 
 You may receive recent headlines from Google News RSS (the same source this app uses for articles). Use those headlines only as corroboration signals — they are not proof, and coverage can lag or miss niche topics.
 
 Rules:
-- Do not claim certainty. Say when headlines support, contradict, or are neutral toward the user's question.
-- If headlines don't match the user's claim, say so clearly.
-- If no headlines were returned, explain that Google News did not surface obvious matches.
+- Open your response with a clear status line on its own first line: "STATUS: VERIFIED", "STATUS: FAKE", or "STATUS: UNVERIFIED".
+- Then provide your explanation.
 - Keep replies under 320 words unless the user pasted very long text.
 - Close with one line: "Overall:" plus a brief verdict."""
 
@@ -1661,6 +1663,7 @@ def api_ask_ai():
                 "reply": reply,
                 "mode": "x_com",
                 "tweet_count": len(briefs),
+                "headlines": briefs[:5]
             })
         except ValueError as e:
             return jsonify({"success": False, "message": str(e)}), 400
@@ -1691,6 +1694,7 @@ def api_ask_ai():
                     "headlines_count": headlines_count,
                     "x_search_available": apify_ok,
                     "search_query": search_q,
+                    "headlines": items[:5] # Return top 5 headlines
                 })
             if (os.environ.get("OPENAI_API_KEY") or "").strip():
                 reply = _openai_news_reply(message, headline, summary, google_block)
@@ -1703,6 +1707,7 @@ def api_ask_ai():
                     "headlines_count": headlines_count,
                     "x_search_available": apify_ok,
                     "search_query": search_q,
+                    "headlines": items[:5] # Return top 5 headlines
                 })
         except Exception as e:
             logger.warning("AI ask-ai failed, using Google News text only: %s", e)
@@ -1719,6 +1724,7 @@ def api_ask_ai():
                 "headlines_count": headlines_count,
                 "x_search_available": apify_ok,
                 "search_query": search_q,
+                "headlines": items[:5]
             })
 
         reply = _heuristic_news_reply(message)
