@@ -1322,15 +1322,6 @@ def _format_x_com_search_reply(search_query: str, tweets: list, had_google_news_
             f"Semantic analysis: {x_verification['reason']} "
             "Posts found contain related keywords but may not confirm the specific claim."
         )
-    
-    status_para_clean = status_para.strip()
-    return (
-        f"{status_para_clean}\n\n"
-        f"**X.com search** (Apify tweet scraper) for:\n\"{display_q}\"\n\n"
-        f"Sample posts ({len(tweets)} returned, show up to 12):\n\n{block}\n\n"
-        "Social posts are **not** verification — bots, rumors, and jokes appear too. "
-        "Prefer primary sources or major news if the claim matters."
-    )
 
 
 def _format_google_news_ask_ai_reply(
@@ -1339,16 +1330,14 @@ def _format_google_news_ask_ai_reply(
     """Plain-text answer from Google News RSS only (no OpenAI)."""
     display_q = search_query if len(search_query) <= 200 else search_query[:197] + "..."
     if not items:
-        status_para_clean = status_para.strip()
-    return (
-        f"{status_para_clean}\n\n"
+        return (
             f"We ran the same Google News RSS search the app uses for articles.\n\n"
             f"**Search used:** \"{display_q}\"\n\n"
             "No headlines were returned (or the feed could not be read). "
-            "That often means the topic isn’t indexed with those exact words yet, or it’s very niche. "
+            "That often means the topic isn't indexed with those exact words yet, or it's very niche. "
             "Try adding a location, organization name, or year.\n\n"
             "**STATUS: Unverified**\n"
-            "No corroboration from Google News in this search — searching on X.com might yield more info."
+            "No corroboration from Google News in this search \u2014 searching on X.com might yield more info."
         )
 
     lines = []
@@ -1516,49 +1505,53 @@ def api_ask_ai():
                 "message": "X search could not complete. Try again or shorten your keywords.",
             }), 502
 
-    search_q = _ask_ai_rss_query(message)
-    items = _google_news_rss_items_simple(search_q, limit=15)
-    google_block = _google_news_context_block(items)
-    apify_ok = bool(_apify_api_token())
-    offer_x = apify_ok
-    headlines_count = len(items)
-
     try:
-        if (os.environ.get("OPENAI_API_KEY") or "").strip():
-            reply = _openai_news_reply(message, headline, summary, google_block)
+        search_q = _ask_ai_rss_query(message)
+        items = _google_news_rss_items_simple(search_q, limit=15)
+        google_block = _google_news_context_block(items)
+        apify_ok = bool(_apify_api_token())
+        offer_x = apify_ok
+        headlines_count = len(items)
+
+        try:
+            if (os.environ.get("OPENAI_API_KEY") or "").strip():
+                reply = _openai_news_reply(message, headline, summary, google_block)
+                return jsonify({
+                    "success": True,
+                    "reply": reply,
+                    "mode": "google_news+ai",
+                    "offer_x_search": offer_x,
+                    "headlines_count": headlines_count,
+                    "x_search_available": apify_ok,
+                    "search_query": search_q,
+                })
+        except Exception as e:
+            logger.warning("OpenAI ask-ai failed, using Google News text only: %s", e)
+
+        if search_q:
+            reply = _format_google_news_ask_ai_reply(
+                message, search_q, items
+            )
             return jsonify({
                 "success": True,
                 "reply": reply,
-                "mode": "google_news+ai",
+                "mode": "google_news",
                 "offer_x_search": offer_x,
                 "headlines_count": headlines_count,
                 "x_search_available": apify_ok,
                 "search_query": search_q,
             })
-    except Exception as e:
-        logger.warning("OpenAI ask-ai failed, using Google News text only: %s", e)
 
-    if search_q:
-        reply = _format_google_news_ask_ai_reply(
-            message, search_q, items
-        )
+        reply = _heuristic_news_reply(message)
         return jsonify({
             "success": True,
             "reply": reply,
-            "mode": "google_news",
-            "offer_x_search": offer_x,
-            "headlines_count": headlines_count,
-            "x_search_available": apify_ok,
-            "search_query": search_q,
+            "mode": "fallback",
+            "offer_x_search": False,
         })
-
-    reply = _heuristic_news_reply(message)
-    return jsonify({
-        "success": True,
-        "reply": reply,
-        "mode": "fallback",
-        "offer_x_search": False,
-    })
+    except Exception as e:
+        logger.exception("FATAL error in api_ask_ai")
+        return jsonify({"success": False, "message": "An internal error occurred. Please try again later."}), 500
 
 
 @app.route("/api/news", methods=["GET"])
