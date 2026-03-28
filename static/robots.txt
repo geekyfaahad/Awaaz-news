@@ -1,0 +1,38 @@
+# robots.txt for https://awaaz.onrender.com/
+# Last updated: 2025-03-12
+
+# Allow all web crawlers full access
+User-agent: *
+Allow: /
+Crawl-delay: 1
+
+# Specific rules for major search engines to maximize crawling
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0.5
+
+User-agent: Googlebot-Image
+Allow: /
+Crawl-delay: 0.5
+
+User-agent: Googlebot-Mobile
+Allow: /
+Crawl-delay: 0.5
+
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+User-agent: Yandexbot
+Allow: /
+Crawl-delay: 1
+
+User-agent: Baiduspider
+Allow: /
+Crawl-delay: 1
+
+# Provide path to sitemap
+Sitemap: https://awaaz.onrender.com/sitemap.xml
+
+# Host directive for canonical URLs
+Host: awaaz.onrender.com

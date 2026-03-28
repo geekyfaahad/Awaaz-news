@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="google-site-verification" content="Di1eo7vv4a7IgC47BLHrM1lYhlseLx0CaBwXUBouJKU" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <title>Awaaz 2.0 - Kashmir News</title>
+    <meta name="description" content="Bringing Kashmir's Voice to the World">
+    <meta name="keywords"
+        content="news aggregator, Kashmir news, real-time news, Google News API, Awaaz news, latest Kashmir updates, breaking news Kashmir, Flask news app, curated news, AI news aggregator, news filtering, news API integration, Kashmir headlines">
+    <meta name="author" content="Hackyyy">
+    <meta property="og:title" content="Awaaz 2.0 - Latest Kashmir News & Updates">
+    <meta property="og:description" content="Bringing Kashmir's Voice to the World">
+    <meta property="og:image"
+        content="https://raw.githubusercontent.com/geekyfaahad/awaaz/refs/heads/main/awaaz-logo.svg">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Awaaz 2.0 - Latest Kashmir News & Updates">
+    <meta name="twitter:description" content="Stay informed with real-time news from Kashmir.">
+    <meta name="twitter:image"
+        content="https://raw.githubusercontent.com/geekyfaahad/awaaz/refs/heads/main/awaaz-logo.svg">
+
+    <link rel="icon" href="https://raw.githubusercontent.com/geekyfaahad/awaaz/refs/heads/main/awaaz-logo.svg"
+        type="image/x-icon">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" as="style"
+        type="text/css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="prefetch" href="/results" as="document">
+    <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+
+    <style>
+        :root {
+            /* Clean Minimalist Theme Variables */
+            --primary-color: #3f51b5;
+            --primary-light: #e8eaf6;
+            --primary-dark: #303f9f;
+            --bg-color: #fafafa;
+            --card-bg: #ffffff;
+            --text-main: #212121;
+            --text-secondary: #757575;
+            --border-radius: 12px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            /* Softer shadow */
+            --hover-shadow: 0 4px 12px rgba(63, 81, 181, 0.15);
+            --transition-speed: 0.3s;
+        }
+
+        body {
+            font-family: 'Roboto', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            margin: 0;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Minimalist Header */
+        .header {
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: var(--spacing-md) 0;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .logo {
+            font-weight: 700;
+            font-size: 1.75rem;
+            /* Slightly smaller for mobile elegance */
+            color: var(--primary-color);
+            margin: 0;
+            letter-spacing: -0.5px;
+        }
+
+        .tagline {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 0;
+            font-weight: 400;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            align-items: flex-start;
+            padding: var(--spacing-lg) 0 var(--spacing-lg);
+        }
+
+        /* Modern Card */
+        .card {
+            border: none;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            box-shadow: var(--card-shadow);
+            background-color: var(--card-bg);
+            transition: transform var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--hover-shadow);
+        }
+
+        .card-body {
+            padding: var(--spacing-lg);
+        }
+
+        /* Form Elements */
+        .form-label {
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: var(--spacing-sm);
+            font-size: 1rem;
+        }
+
+        .form-select {
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            background-color: #f8f9fa;
+            font-size: 1rem;
+            color: var(--text-main);
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .form-select:focus {
+            border-color: var(--primary-color);
+            background-color: #fff;
+            box-shadow: 0 0 0 4px rgba(63, 81, 181, 0.1);
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background-color: var(--primary-color);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            /* Slightly more rounded */
+            font-weight: 600;
+            font-size: 1rem;
+            text-transform: none;
+            /* Removed uppercase for cleaner look */
+            letter-spacing: 0;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(63, 81, 181, 0.2);
+            width: 100%;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(63, 81, 181, 0.3);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary i {
+            margin-right: 8px;
+        }
+
+        .footer {
+            margin-top: auto;
+            padding: var(--spacing-lg) 0;
+            text-align: center;
+            background-color: var(--card-bg);
+            border-top: 1px solid #f0f0f0;
+        }
+
+        .map-icon {
+            color: var(--primary-color);
+            font-size: 3rem;
+            margin-bottom: var(--spacing-md);
+            opacity: 0.9;
+        }
+
+        .bg-icon-circle {
+            width: 80px;
+            height: 80px;
+            background-color: var(--primary-light);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+        }
+
+        .map-icon {
+            font-size: 32px;
+            margin: 0;
+            color: var(--primary-color);
+        }
+
+        /* Ask AI chat */
+        .ask-ai-messages {
+            max-height: 320px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            border-radius: 12px;
+            background: #fafbfc;
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+            text-align: left;
+        }
+
+        .ask-ai-msg {
+            margin-bottom: 12px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            font-size: 0.92rem;
+            line-height: 1.55;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .ask-ai-msg--user {
+            background: var(--primary-light);
+            margin-left: 1.5rem;
+            color: var(--text-main);
+        }
+
+        .ask-ai-msg--bot {
+            background: #fff;
+            border: 1px solid #e8eaf6;
+            margin-right: 0.5rem;
+            box-shadow: var(--card-shadow);
+        }
+
+        .ask-ai-msg--hint {
+            background: transparent;
+            border: none;
+            padding: 0 0 8px 0;
+            margin: 0;
+            color: var(--text-secondary);
+            font-size: 0.88rem;
+            white-space: normal;
+        }
+
+        .ask-ai-input {
+            width: 100%;
+            min-height: 88px;
+            padding: 12px 14px;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            background-color: #f8f9fa;
+            font-size: 1rem;
+            resize: vertical;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .ask-ai-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            background: #fff;
+            box-shadow: 0 0 0 4px rgba(63, 81, 181, 0.1);
+        }
+
+        .btn-ask-ai {
+            width: 100%;
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
+            color: #fff;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-ask-ai:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(63, 81, 181, 0.35);
+            color: #fff;
+        }
+
+        .btn-ask-ai:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+        }
+
+        .ask-ai-x-offer {
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px dashed #c5cae9;
+            background: #fafbff;
+        }
+
+        @media (max-width: 768px) {
+            .card-body {
+                padding: var(--spacing-md);
+            }
+
+            .header {
+                padding: var(--spacing-sm) 0;
+            }
+
+            .logo {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <div class="container">
+            <h1 class="logo text-center">Awaaz</h1>
+            <p class="tagline text-center">Bringing Kashmir's Voice to the World</p>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="container">
+            <div class="row justify-content-center g-4">
+                <div class="col-md-6 col-lg-5">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="text-center mb-4">
+                                <div class="bg-icon-circle">
+                                    <i class="fas fa-search map-icon" style="font-size: 32px; margin-bottom: 0;"></i>
+                                </div>
+                                <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 8px;">Find News</h2>
+                                <p class="text-secondary" style="font-size: 0.95rem;">Select a timeline to discover the
+                                    latest stories</p>
+                            </div>
+
+                            <form id="newsForm">
+                                <div class="mb-4">
+                                    <label for="city" class="form-label">Your city</label>
+                                    <input type="text" name="city" id="city" class="form-control"
+                                        placeholder="e.g. Srinagar, Jammu"
+                                        autocomplete="address-level2"
+                                        style="padding: 12px 16px; border-radius: 8px; border: 1px solid #eee; background-color: #f8f9fa; font-size: 1rem;">
+                                    <p class="text-secondary small mt-2 mb-0">Saved on this device for next time.</p>
+                                </div>
+                                <div class="mb-4">
+                                    <label for="filter" class="form-label">Timeframe</label>
+                                    <select name="filter" id="filter" class="form-select">
+                                        <option value="rf">Recent News (Last Hour)</option>
+                                        <option value="dn">Today's News</option>
+                                        <option value="wn">This Week</option>
+                                        <option value="mn">This Month</option>
+                                        <option value="yn">This Year</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary mt-2" id="getNewsBtn">
+                                    <i class="fas fa-newspaper"></i> Get Briefing
+                                </button>
+                            </form>
+
+                            <!-- Loading indicator -->
+                            <div id="loadingIndicator" class="text-center mt-4" style="display: none;">
+                                <div class="spinner-border text-primary" role="status"
+                                    style="width: 2rem; height: 2rem; border-width: 3px;">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2 text-secondary small">Gathering latest updates...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-5">
+                    <div class="card h-100">
+                        <div class="card-body d-flex flex-column">
+                            <div class="text-center mb-3">
+                                <div class="bg-icon-circle" style="width: 64px; height: 64px;">
+                                    <i class="fas fa-robot map-icon" style="font-size: 28px;"></i>
+                                </div>
+                                <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 6px;">Ask AI</h2>
+                                <p class="text-secondary mb-0" style="font-size: 0.92rem;">Ask whether a story might be
+                                    spam, fake, or misleading — paste a headline, message, or short article clip.</p>
+                            </div>
+                            <div class="ask-ai-messages flex-grow-1" id="askAiMessages" role="log"
+                                aria-live="polite" aria-relevant="additions" style="display: none;">
+                            </div>
+                            <div id="askAiXOffer" class="ask-ai-x-offer mb-2" style="display: none;" aria-live="polite"></div>
+                            <div class="mt-auto">
+                                <label for="askAiInput" class="form-label visually-hidden">Your question or news text</label>
+                                <textarea id="askAiInput" class="ask-ai-input"
+                                    placeholder="Example: Is this headline spam? &quot;You won — claim your prize now&quot;"
+                                    maxlength="10000"></textarea>
+                                <button type="button" class="btn-ask-ai" id="askAiSend">
+                                    <i class="fas fa-paper-plane me-2"></i> Ask
+                                </button>
+                                <p class="text-secondary small mt-2 mb-0 text-center" id="askAiModeHint"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <div class="container">
+            <p class="text-muted mb-0">© 2025 Awaaz News | Connecting Kashmir</p>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/keepAlive.js') }}" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.getElementById('newsForm');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const getNewsBtn = document.getElementById('getNewsBtn');
+            const cityInput = document.getElementById('city');
+            const CITY_STORAGE_KEY = 'awaaz_user_city';
+
+            try {
+                const savedCity = localStorage.getItem(CITY_STORAGE_KEY);
+                if (savedCity) {
+                    cityInput.value = savedCity;
+                }
+            } catch (err) {
+                console.warn('localStorage unavailable:', err);
+            }
+
+            form.addEventListener('submit', async function (e) {
+                e.preventDefault();
+
+                const filter = document.getElementById('filter').value;
+                const city = (cityInput.value || '').trim();
+
+                try {
+                    localStorage.setItem(CITY_STORAGE_KEY, city);
+                } catch (err) {
+                    console.warn('localStorage unavailable:', err);
+                }
+
+                // Show loading indicator
+                loadingIndicator.style.display = 'block';
+                getNewsBtn.disabled = true;
+                getNewsBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+
+                try {
+                    const params = new URLSearchParams({ filter: filter });
+                    if (city) {
+                        params.set('city', city);
+                    }
+                    const response = await fetch('/api/news?' + params.toString());
+                    const data = await response.json();
+
+                    if (data.success) {
+                        // Redirect to results page with the data
+                        const formData = new FormData();
+                        formData.append('filter', filter);
+                        formData.append('city', city);
+                        formData.append('news_data', JSON.stringify(data.data));
+
+                        const resultsResponse = await fetch('/results', {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        if (resultsResponse.ok) {
+                            const resultsHtml = await resultsResponse.text();
+                            document.open();
+                            document.write(resultsHtml);
+                            document.close();
+                        } else {
+                            throw new Error('Failed to load results page');
+                        }
+                    } else {
+                        alert('Error: ' + (data.message || 'Failed to fetch news'));
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Network error. Please try again.');
+                } finally {
+                    // Hide loading indicator
+                    loadingIndicator.style.display = 'none';
+                    getNewsBtn.disabled = false;
+                    getNewsBtn.innerHTML = '<i class="fas fa-newspaper"></i> Get Briefing';
+                }
+            });
+
+            const askAiMessages = document.getElementById('askAiMessages');
+            const askAiInput = document.getElementById('askAiInput');
+            const askAiSend = document.getElementById('askAiSend');
+            const askAiModeHint = document.getElementById('askAiModeHint');
+            const askAiXOffer = document.getElementById('askAiXOffer');
+            let lastAskAiUserText = '';
+            let lastHeadlineCount = 0;
+
+            function clearAskAiXOffer() {
+                if (!askAiXOffer) return;
+                askAiXOffer.style.display = 'none';
+                askAiXOffer.innerHTML = '';
+            }
+
+            function appendAskAiBubble(content, isUser) {
+                if (askAiMessages.style.display === 'none') {
+                    askAiMessages.style.display = 'block';
+                }
+                const div = document.createElement('div');
+                div.className = 'ask-ai-msg ' + (isUser ? 'ask-ai-msg--user' : 'ask-ai-msg--bot');
+                
+                if (isUser) {
+                    div.textContent = content;
+                } else {
+                    // Simple Markdown-like renderer for bot
+                    let html = content
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                        .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" class="text-primary fw-bold">$1</a>');
+                    div.innerHTML = html;
+                }
+                
+                askAiMessages.appendChild(div);
+                askAiMessages.scrollTop = askAiMessages.scrollHeight;
+            }
+
+            askAiSend.addEventListener('click', async function () {
+                const text = (askAiInput.value || '').trim();
+                if (!text) {
+                    alert('Please enter some text to analyze.');
+                    return;
+                }
+                clearAskAiXOffer();
+                lastAskAiUserText = text;
+                appendAskAiBubble(text, true);
+                askAiInput.value = '';
+                askAiSend.disabled = true;
+                askAiSend.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Thinking…';
+                const loadingId = 'ask-ai-loading-' + Date.now();
+                const loadingEl = document.createElement('div');
+                loadingEl.id = loadingId;
+                loadingEl.className = 'ask-ai-msg ask-ai-msg--bot text-secondary';
+                loadingEl.innerHTML = '<i class="fas fa-circle-notch fa-spin me-2"></i> Checking…';
+                askAiMessages.appendChild(loadingEl);
+                askAiMessages.scrollTop = askAiMessages.scrollHeight;
+
+                try {
+                    const res = await fetch('/api/ask-ai', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: text }),
+                    });
+                    const data = await res.json();
+                    const loadNode = document.getElementById(loadingId);
+                    if (loadNode) loadNode.remove();
+                    if (data.success && data.reply) {
+                        appendAskAiBubble(data.reply, false);
+                        if (askAiModeHint) {
+                            if (data.mode === 'google_news+ai') {
+                                askAiModeHint.textContent = 'Google News headlines + AI summary — always verify on trusted sources.';
+                            } else if (data.mode === 'google_news') {
+                                askAiModeHint.textContent = 'Based on Google News RSS (same source as Get Briefing).';
+                            } else if (data.mode === 'x_com') {
+                                askAiModeHint.textContent = 'X.com results via Apify tweet-scraper — not verification.';
+                            } else {
+                                askAiModeHint.textContent = 'Could not load Google News — try again shortly.';
+                            }
+                        }
+
+                        // NEW: Auto-trigger X search if nothing found, otherwise show a manual button
+                        lastHeadlineCount = data.headlines_count || 0;
+                        if (data.offer_x_search && data.x_search_available) {
+                            if (lastHeadlineCount === 0) {
+                                appendAskAiBubble("Google News had no article matches. Automatically searching on X.com via Apify for real-time discussion (this can take ~2 minutes)...", false);
+                                await runXSearch();
+                            } else if (askAiXOffer) {
+                                askAiXOffer.style.display = 'block';
+                                askAiXOffer.innerHTML = '<p class="small text-secondary mb-2"><i class="fa-brands fa-x-twitter me-1"></i> <strong>Broaden search to X.com?</strong> Headlines found above, but we can also check social discussion (takes ~2 min).</p>' +
+                                    '<button type="button" class="btn btn-outline-primary btn-sm" id="askAiXBtn"><i class="fa-brands fa-x-twitter me-1"></i>Search on X.com</button>';
+                                var xbtn = document.getElementById('askAiXBtn');
+                                if (xbtn) {
+                                    xbtn.addEventListener('click', async function manualXSearch() {
+                                        clearAskAiXOffer();
+                                        await runXSearch();
+                                    });
+                                }
+                            }
+                        } else if (lastHeadlineCount === 0 && !data.x_search_available) {
+                             appendAskAiBubble("No hits on Google News, and X.com search isn't configured (no Apify token in .env).", false);
+                        }
+                    } else {
+                        appendAskAiBubble(data.message || 'Something went wrong. Try again.', false);
+                    }
+
+                    async function runXSearch() {
+                        if (askAiMessages.style.display === 'none') {
+                            askAiMessages.style.display = 'block';
+                        }
+                        var xLoadId = 'ask-x-load-' + Date.now();
+                        var xLoad = document.createElement('div');
+                        xLoad.id = xLoadId;
+                        xLoad.className = 'ask-ai-msg ask-ai-msg--bot text-secondary';
+                        xLoad.innerHTML = '<i class="fas fa-circle-notch fa-spin me-2"></i> Running Apify tweet scraper (up to ~2 min)…';
+                        askAiMessages.appendChild(xLoad);
+                        askAiMessages.scrollTop = askAiMessages.scrollHeight;
+
+                        try {
+                            var xRes = await fetch('/api/ask-ai', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ 
+                                    message: lastAskAiUserText, 
+                                    search_on_x: true,
+                                    had_google_news_hits: (lastHeadlineCount > 0)
+                                }),
+                            });
+                            var xData = await xRes.json();
+                            var xNode = document.getElementById(xLoadId);
+                            if (xNode) xNode.remove();
+                            if (xData.success && xData.reply) {
+                                appendAskAiBubble(xData.reply, false);
+                                if (askAiModeHint) askAiModeHint.textContent = 'X.com via Apify — social posts are not proof.';
+                            } else {
+                                appendAskAiBubble(xData.message || 'X search failed.', false);
+                            }
+                        } catch (err) {
+                            var xNode2 = document.getElementById(xLoadId);
+                            if (xNode2) xNode2.remove();
+                            appendAskAiBubble('X search request failed. Try again.', false);
+                        }
+                    } 
+                } catch (e) {
+                    const loadNode = document.getElementById(loadingId);
+                    if (loadNode) loadNode.remove();
+                    appendAskAiBubble('Network error. Please try again.', false);
+                } finally {
+                    askAiSend.disabled = false;
+                    askAiSend.innerHTML = '<i class="fas fa-paper-plane me-2"></i> Ask';
+                }
+            });
+
+            askAiInput.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    askAiSend.click();
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

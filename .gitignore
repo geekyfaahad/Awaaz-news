@@ -1,0 +1,11 @@
+.env
+encryption_key.key
+__pycache__/
+static/cache/
+*.pyc
+.ipynb_checkpoints/
+.vscode/
+*.code-workspace
+patch_*.py
+test_*.py
+apify_output_*.json

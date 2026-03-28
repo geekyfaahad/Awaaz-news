@@ -1,0 +1,86 @@
+[
+  {
+    "domain": "kashmirobserver.net",
+    "name": "Kashmir Observer",
+    "enabled": true,
+    "id": "kashmirobserver.net"
+  },
+  {
+    "domain": "thekashmiriyat.co.uk",
+    "name": "The Kashmiriyat",
+    "enabled": true,
+    "id": "thekashmiriyat.co.uk"
+  },
+  {
+    "domain": "kashmirnews.in",
+    "name": "Kashmir News",
+    "enabled": true,
+    "id": "kashmirnews.in"
+  },
+  {
+    "domain": "kashmirdespatch.com",
+    "name": "Kashmir Dispatch",
+    "enabled": false,
+    "id": "kashmirdespatch.com"
+  },
+  {
+    "domain": "kashmirlife.net",
+    "name": "Kashmir Life",
+    "enabled": true,
+    "id": "kashmirlife.net"
+  },
+  {
+    "domain": "greaterkashmir.com",
+    "name": "Greater Kashmir",
+    "enabled": true,
+    "id": "greaterkashmir.com"
+  },
+  {
+    "domain": "asiannewshub.com",
+    "name": "Asian News Hub",
+    "enabled": true,
+    "id": "asiannewshub.com"
+  },
+  {
+    "domain": "thekashmirmonitor.net",
+    "name": "The Kashmir Monitor",
+    "enabled": true,
+    "id": "thekashmirmonitor.net"
+  },
+  {
+    "domain": "kashmirtimes.com",
+    "name": "Kashmir Times",
+    "enabled": true,
+    "id": "kashmirtimes.com"
+  },
+  {
+    "domain": "newsvibesofindia.com",
+    "name": "News Vibes of India",
+    "enabled": true,
+    "id": "newsvibesofindia.com"
+  },
+  {
+    "domain": "kashmirvision.in",
+    "name": "Kashmir Vision",
+    "enabled": true,
+    "id": "kashmirvision.in"
+  },
+  {
+    "id": "https://www.knskashmir.com/",
+    "domain": "https://www.knskashmir.com/",
+    "name": "Kns Kashmir",
+    "enabled": false
+  },
+  {
+    "id": "https://asianewsnetwork.net/",
+    "domain": "https://asianewsnetwork.net/",
+    "name": "AsiaNewsNetwork(ANN)",
+    "enabled": true
+  },
+  {
+    "id": "https://epaper.greaterkashmir.com",
+    "domain": "https://epaper.greaterkashmir.com",
+    "name": "epaper greater kashmir",
+    "enabled": false
+  }
+]
