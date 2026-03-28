@@ -968,7 +968,10 @@ _NEGATIVE_ACTION_WORDS = frozenset({
     "assassinated", "shot", "shooting", "arrested", "detained", "kidnapped",
     "attacked", "injured", "bomb", "bombed", "explosion", "blast",
     "resign", "resigned", "resigns", "sacked", "fired", "suspended",
-    "missing", "crash", "collapsed", "suicide",
+    "missing", "crash", "collapsed", "suicide", "divorce", "divorced", "divorcing",
+    "marriage", "married", "marries", "wedding", "engaged", "engagement",
+    "arrest", "arrested", "jail", "prison", "sentenced", "court", "lawsuit",
+    "sued", "fraud", "scam", "corruption", "raid", "raided",
 })
 
 # Words that indicate the subject is commenting/reacting, not being acted upon
@@ -1075,7 +1078,11 @@ def _semantic_verify_claim(user_claim: str, headlines: list) -> dict:
     # ── Step 1: Extract the claim's subject & action ──
     # The subject is the entity (noun phrase) and the action is what happened
     claim_set = set(claim_tokens)
-    claim_action_words = claim_set & _NEGATIVE_ACTION_WORDS
+    # Ignore meta-words that shouldn't contribute to verification overlap
+    meta_ignore = {"verified", "unverified", "news", "confirmed", "true", "false", "claim", "hoax"}
+    claim_set_filtered = claim_set - meta_ignore
+    
+    claim_action_words = claim_set_filtered & _NEGATIVE_ACTION_WORDS
     has_serious_claim = bool(claim_action_words)  # "killed", "dead", etc.
     claim_subject_tokens = _extract_claim_subject_tokens(claim_tokens)
 
@@ -1125,11 +1132,13 @@ def _semantic_verify_claim(user_claim: str, headlines: list) -> dict:
                 # Has overlap but no clear action — mark neutral
                 neutral.append(idx)
         else:
-            # Non-serious claim (general news query) — overlap is sufficient
-            if overlap_ratio >= 0.5:
+            # Non-serious claim (general news query) — require higher certainty
+            # General info query: don't call it 'Verified' unless almost perfect overlap.
+            # Otherwise, call it a 'News Match' and keep status as neutral/unverified.
+            if overlap_ratio >= 0.9:
                 matching.append(idx)
-            else:
-                neutral.append(idx)
+            elif overlap_ratio >= 0.6:
+                neutral.append(idx) # About the person/topic but not confirming the 'event'
 
     # ── Step 3: Determine verdict ──
     if matching:
@@ -1747,6 +1756,16 @@ def api_ask_ai():
     try:
         search_q = _ask_ai_rss_query(message)
         items = _google_news_rss_items_simple(search_q, limit=15)
+        
+        # Fallback: Broaden search if 0 results
+        if not items and len(message.split()) > 3:
+            # Try searching just the main subjects (names/entities)
+            tokens = _tokenize_lower(message)
+            subjects = _extract_claim_subject_tokens(tokens)
+            if subjects and len(subjects) >= 1:
+                search_q = " ".join(subjects)
+                items = _google_news_rss_items_simple(search_q, limit=15)
+        
         google_block = _google_news_context_block(items)
         apify_ok = bool(_apify_api_token())
         offer_x = apify_ok

@@ -385,7 +385,7 @@ const Home: React.FC = () => {
                         handleAskAi();
                       }
                     }}
-                    placeholder="Verify news or ask a question..."
+                    placeholder="Verify news ..."
                     style={{ minHeight: '100px', paddingRight: '12px' }}
                   />
                   <div className="text-end mt-2">
