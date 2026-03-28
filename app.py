@@ -1276,7 +1276,7 @@ def _apify_api_token() -> str:
 APIFY_TWEET_SCRAPER_ACT = os.environ.get(
     "APIFY_TWEET_SCRAPER_ACT",
     "kaitoeasyapi/twitter-x-data-tweet-scraper-pay-per-result-cheapest"
-).replace("/", "~")
+)
 
 
 def _apify_run_single_search(client, query: str, max_items: int) -> list:
@@ -1424,6 +1424,13 @@ def _format_x_com_search_reply(search_query: str, tweets: list, had_google_news_
             f"Semantic analysis: {x_verification['reason']} "
             "Posts found contain related keywords but may not confirm the specific claim."
         )
+    
+    status_para_clean = status_para.strip()
+    return (
+        f"{status_para_clean}\n\n"
+        f"Searched **X (Twitter)** via Apify for:\n\"{display_q}\"\n\n"
+        f"Top results found:\n{block}"
+    )
 
 
 def _format_google_news_ask_ai_reply(
