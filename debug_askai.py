@@ -64,25 +64,113 @@ _COMMENTARY_VERBS = frozenset({
     "orders", "directs", "reviews", "meets", "visits", "inaugurates",
 })
 
+_SERIOUS_CLAIM_BRIDGE_WORDS = frozenset({
+    "is", "was", "were", "has", "have", "had", "been", "being", "be",
+    "found", "confirmed", "reportedly", "reported", "declared",
+    "officially", "now", "feared",
+})
+
+_NEGATION_OR_RUMOR_CUES = frozenset({
+    "no", "not", "fake", "false", "hoax", "rumor", "rumour",
+    "rumors", "rumours", "debunk", "debunked", "debunks", "denies",
+    "deny", "denied", "alive", "safe", "unharmed",
+})
+
 
 def _tokenize_lower(text):
     return re.findall(r"[a-z0-9']+", (text or "").lower())
 
 
+def _extract_claim_subject_tokens(claim_tokens):
+    seen = set()
+    subject_tokens = []
+    for token in claim_tokens:
+        if token in _NEGATIVE_ACTION_WORDS or token in _X_STOP_WORDS or len(token) <= 2 or token in seen:
+            continue
+        seen.add(token)
+        subject_tokens.append(token)
+    return subject_tokens
+
+
+def _find_subject_spans(claim_subjects, headline_tokens):
+    if not claim_subjects or not headline_tokens:
+        return []
+
+    unique_subjects = list(dict.fromkeys(claim_subjects))
+    required_matches = 1 if len(unique_subjects) == 1 else 2
+    spans = []
+
+    for start in range(len(headline_tokens)):
+        if headline_tokens[start] != unique_subjects[0]:
+            continue
+
+        matched = 1
+        last_pos = start
+        for token in unique_subjects[1:]:
+            found_pos = None
+            for pos in range(last_pos + 1, min(len(headline_tokens), last_pos + 3)):
+                if headline_tokens[pos] == token:
+                    found_pos = pos
+                    break
+            if found_pos is None:
+                break
+            matched += 1
+            last_pos = found_pos
+
+        if matched >= required_matches:
+            spans.append((start, last_pos))
+
+    return spans
+
+
 def _check_subject_action_alignment(claim_subjects, claim_actions, headline_tokens, headline_actions):
     if not claim_subjects or not headline_tokens:
         return False
+    subject_spans = _find_subject_spans(claim_subjects, headline_tokens)
     action_positions = [i for i, t in enumerate(headline_tokens) if t in headline_actions]
-    subject_positions = [i for i, t in enumerate(headline_tokens) if t in set(claim_subjects)]
-    if not action_positions or not subject_positions:
+    if not action_positions or not subject_spans:
         return False
     for act_pos in action_positions:
-        for subj_pos in subject_positions:
-            distance = act_pos - subj_pos
-            if 0 < distance <= 4:
+        for span_start, span_end in subject_spans:
+            if span_end < act_pos:
+                bridge = headline_tokens[span_end + 1:act_pos]
+                if len(bridge) <= 2 and all(t in _SERIOUS_CLAIM_BRIDGE_WORDS for t in bridge):
+                    return True
+            if act_pos < span_start:
+                if act_pos + 1 >= len(headline_tokens) or headline_tokens[act_pos + 1] != "of":
+                    continue
+                bridge = headline_tokens[act_pos + 2:span_start]
+                if len(bridge) <= 2 and all(t in _SERIOUS_CLAIM_BRIDGE_WORDS for t in bridge):
+                    return True
+    return False
+
+
+def _headline_negates_claim(claim_subjects, headline_tokens, headline_actions):
+    if not claim_subjects or not headline_tokens:
+        return False
+
+    subject_spans = _find_subject_spans(claim_subjects, headline_tokens)
+    if not subject_spans:
+        return False
+
+    negation_positions = [i for i, t in enumerate(headline_tokens) if t in _NEGATION_OR_RUMOR_CUES]
+    if not negation_positions:
+        return False
+
+    action_positions = [i for i, t in enumerate(headline_tokens) if t in headline_actions] if headline_actions else []
+
+    for span_start, span_end in subject_spans:
+        context_start = max(0, span_start - 4)
+        context_end = min(len(headline_tokens), span_end + 5)
+        if any(context_start <= pos < context_end for pos in negation_positions):
+            return True
+
+        for act_pos in action_positions:
+            context_start = max(0, min(span_start, act_pos) - 3)
+            context_end = min(len(headline_tokens), max(span_end, act_pos) + 4)
+            if any(context_start <= pos < context_end for pos in negation_positions):
                 return True
-            if -3 <= distance < 0:
-                return True
+
     return False
 
 
@@ -94,6 +182,7 @@ def _semantic_verify_claim(user_claim, headlines):
     claim_set = set(claim_tokens)
     claim_action_words = claim_set & _NEGATIVE_ACTION_WORDS
     has_serious_claim = bool(claim_action_words)
+    claim_subject_tokens = _extract_claim_subject_tokens(claim_tokens)
 
     matching, contradicting, neutral = [], [], []
 
@@ -113,19 +202,16 @@ def _semantic_verify_claim(user_claim, headlines):
             headline_commentary = title_set & _COMMENTARY_VERBS
 
             if headline_actions:
-                claim_subject_tokens = [t for t in claim_tokens
-                                        if t not in _NEGATIVE_ACTION_WORDS
-                                        and t not in _X_STOP_WORDS
-                                        and len(t) > 2]
                 action_subject_match = _check_subject_action_alignment(
                     claim_subject_tokens, claim_action_words,
                     title_tokens, headline_actions
                 )
-                if action_subject_match:
+                negates_claim = _headline_negates_claim(claim_subject_tokens, title_tokens, headline_actions)
+                if action_subject_match and not negates_claim:
                     matching.append(idx)
                 else:
                     contradicting.append(idx)
-            elif headline_commentary:
+            elif headline_commentary or _headline_negates_claim(claim_subject_tokens, title_tokens, set()):
                 contradicting.append(idx)
             else:
                 neutral.append(idx)

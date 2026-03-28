@@ -561,7 +561,9 @@
                         appendAskAiBubble(data.reply, false);
                         if (askAiModeHint) {
                             if (data.mode === 'google_news+ai') {
-                                askAiModeHint.textContent = 'Google News headlines + AI summary — always verify on trusted sources.';
+                                askAiModeHint.textContent = data.ai_provider === 'gemini'
+                                    ? 'Google News headlines + Gemini review — always verify on trusted sources.'
+                                    : 'Google News headlines + AI summary — always verify on trusted sources.';
                             } else if (data.mode === 'google_news') {
                                 askAiModeHint.textContent = 'Based on Google News RSS (same source as Get Briefing).';
                             } else if (data.mode === 'x_com') {

@@ -917,10 +917,75 @@ _COMMENTARY_VERBS = frozenset({
     "orders", "directs", "reviews", "meets", "visits", "inaugurates",
 })
 
+_SERIOUS_CLAIM_BRIDGE_WORDS = frozenset({
+    "is", "was", "were", "has", "have", "had", "been", "being", "be",
+    "found", "confirmed", "reportedly", "reported", "declared",
+    "officially", "now", "feared",
+})
+
+_NEGATION_OR_RUMOR_CUES = frozenset({
+    "no", "not", "fake", "false", "hoax", "rumor", "rumour",
+    "rumors", "rumours", "debunk", "debunked", "debunks", "denies",
+    "deny", "denied", "alive", "safe", "unharmed",
+})
+
 
 def _tokenize_lower(text: str) -> list:
     """Split text into lowercase word tokens."""
     return re.findall(r"[a-z0-9']+", (text or "").lower())
+
+
+def _extract_claim_subject_tokens(claim_tokens: list) -> list:
+    seen = set()
+    subject_tokens = []
+    for token in claim_tokens:
+        if (
+            token in _NEGATIVE_ACTION_WORDS
+            or token in _X_STOP_WORDS
+            or len(token) <= 2
+            or token in seen
+        ):
+            continue
+        seen.add(token)
+        subject_tokens.append(token)
+    return subject_tokens
+
+
+def _find_subject_spans(claim_subjects: list, headline_tokens: list) -> list:
+    """
+    Find tight, ordered spans where the claim subject appears in the headline.
+
+    For person-name claims we prefer compact spans like "omar abdullah", not
+    loose token matches scattered across the headline.
+    """
+    if not claim_subjects or not headline_tokens:
+        return []
+
+    unique_subjects = list(dict.fromkeys(claim_subjects))
+    required_matches = 1 if len(unique_subjects) == 1 else 2
+    spans = []
+
+    for start in range(len(headline_tokens)):
+        if headline_tokens[start] != unique_subjects[0]:
+            continue
+
+        matched = 1
+        last_pos = start
+        for token in unique_subjects[1:]:
+            found_pos = None
+            for pos in range(last_pos + 1, min(len(headline_tokens), last_pos + 3)):
+                if headline_tokens[pos] == token:
+                    found_pos = pos
+                    break
+            if found_pos is None:
+                break
+            matched += 1
+            last_pos = found_pos
+
+        if matched >= required_matches:
+            spans.append((start, last_pos))
+
+    return spans
 
 
 def _semantic_verify_claim(user_claim: str, headlines: list) -> dict:
@@ -947,6 +1012,7 @@ def _semantic_verify_claim(user_claim: str, headlines: list) -> dict:
     claim_set = set(claim_tokens)
     claim_action_words = claim_set & _NEGATIVE_ACTION_WORDS
     has_serious_claim = bool(claim_action_words)  # "killed", "dead", etc.
+    claim_subject_tokens = _extract_claim_subject_tokens(claim_tokens)
 
     # ── Step 2: Score each headline ──
     matching = []
@@ -972,23 +1038,21 @@ def _semantic_verify_claim(user_claim: str, headlines: list) -> dict:
             headline_commentary = title_set & _COMMENTARY_VERBS
 
             if headline_actions:
-                # Both claim and headline have action words like "killed"
-                # Now check: is the SAME SUBJECT being acted upon?
-                # Build context windows around the action word in both texts
-                claim_subject_tokens = [t for t in claim_tokens
-                                        if t not in _NEGATIVE_ACTION_WORDS
-                                        and t not in _X_STOP_WORDS
-                                        and len(t) > 2]
                 action_subject_match = _check_subject_action_alignment(
                     claim_subject_tokens, claim_action_words,
                     title_tokens, headline_actions
                 )
-                if action_subject_match:
+                negates_claim = _headline_negates_claim(
+                    claim_subject_tokens, title_tokens, headline_actions
+                )
+                if action_subject_match and not negates_claim:
                     matching.append(idx)
                 else:
                     contradicting.append(idx)
 
-            elif headline_commentary:
+            elif headline_commentary or _headline_negates_claim(
+                claim_subject_tokens, title_tokens, set()
+            ):
                 # Headline has the subject but with a commentary verb
                 # e.g., "Omar Abdullah questions..." vs claim "Omar Abdullah killed"
                 contradicting.append(idx)
@@ -1044,24 +1108,60 @@ def _check_subject_action_alignment(
     if not claim_subjects or not headline_tokens:
         return False
 
-    # Find positions of action words in the headline
+    subject_spans = _find_subject_spans(claim_subjects, headline_tokens)
     action_positions = [i for i, t in enumerate(headline_tokens) if t in headline_actions]
-    subject_positions = [i for i, t in enumerate(headline_tokens)
-                         if t in set(claim_subjects)]
-
-    if not action_positions or not subject_positions:
+    if not action_positions or not subject_spans:
         return False
 
-    # Check proximity: in a "subject killed" pattern, subject is within 3 words
-    # BEFORE the action word. In a "commentary" pattern, subject is far from action.
     for act_pos in action_positions:
-        for subj_pos in subject_positions:
-            distance = act_pos - subj_pos
-            # Subject immediately before action (0-3 words) = direct relationship
-            if 0 < distance <= 4:
-                return True
-            # Subject immediately after action = passive voice "killed was omar" (rare but possible)
-            if -3 <= distance < 0:
+        for span_start, span_end in subject_spans:
+            if span_end < act_pos:
+                bridge = headline_tokens[span_end + 1:act_pos]
+                if len(bridge) <= 2 and all(t in _SERIOUS_CLAIM_BRIDGE_WORDS for t in bridge):
+                    return True
+
+            if act_pos < span_start:
+                if act_pos + 1 >= len(headline_tokens) or headline_tokens[act_pos + 1] != "of":
+                    continue
+                bridge = headline_tokens[act_pos + 2:span_start]
+                if len(bridge) <= 2 and all(t in _SERIOUS_CLAIM_BRIDGE_WORDS for t in bridge):
+                    return True
+
+    return False
+
+
+def _headline_negates_claim(
+    claim_subjects: list,
+    headline_tokens: list,
+    headline_actions: set,
+) -> bool:
+    if not claim_subjects or not headline_tokens:
+        return False
+
+    subject_spans = _find_subject_spans(claim_subjects, headline_tokens)
+    if not subject_spans:
+        return False
+
+    negation_positions = [
+        i for i, token in enumerate(headline_tokens) if token in _NEGATION_OR_RUMOR_CUES
+    ]
+    if not negation_positions:
+        return False
+
+    action_positions = [
+        i for i, token in enumerate(headline_tokens) if token in headline_actions
+    ] if headline_actions else []
+
+    for span_start, span_end in subject_spans:
+        context_start = max(0, span_start - 4)
+        context_end = min(len(headline_tokens), span_end + 5)
+        if any(context_start <= pos < context_end for pos in negation_positions):
+            return True
+
+        for act_pos in action_positions:
+            context_start = max(0, min(span_start, act_pos) - 3)
+            context_end = min(len(headline_tokens), max(span_end, act_pos) + 4)
+            if any(context_start <= pos < context_end for pos in negation_positions):
                 return True
 
     return False
@@ -1448,6 +1548,72 @@ def _openai_news_reply(
     return msg.strip() or "No response from the model."
 
 
+def _gemini_news_reply(
+    user_message: str,
+    headline: Optional[str],
+    summary: Optional[str],
+    google_news_block: str,
+) -> str:
+    api_key = (os.environ.get("GEMINI_API_KEY") or "").strip()
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY not set")
+
+    extra_parts = []
+    if headline:
+        extra_parts.append("Headline (optional context): " + headline.strip()[:800])
+    if summary:
+        extra_parts.append("Summary (optional context): " + summary.strip()[:1200])
+    extra = ("\n".join(extra_parts) + "\n\n") if extra_parts else ""
+    user_block = (
+        extra
+        + "User question / claim:\n"
+        + user_message[:10000]
+        + "\n\n---\n"
+        + google_news_block
+    )
+
+    payload = {
+        "system_instruction": {
+            "parts": [{"text": NEWS_ASSISTANT_SYSTEM}],
+        },
+        "contents": [
+            {
+                "role": "user",
+                "parts": [{"text": user_block[:12000]}],
+            }
+        ],
+        "generationConfig": {
+            "temperature": 0.45,
+            "maxOutputTokens": 700,
+        },
+    }
+    model = (os.environ.get("GEMINI_MODEL") or "gemini-2.5-flash").strip()
+    resp = requests.post(
+        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+        headers={
+            "x-goog-api-key": api_key,
+            "Content-Type": "application/json",
+        },
+        json=payload,
+        timeout=75,
+    )
+    if resp.status_code != 200:
+        logger.error("Gemini API error %s: %s", resp.status_code, resp.text[:500])
+        raise RuntimeError("Gemini returned an error")
+
+    data = resp.json()
+    for candidate in data.get("candidates") or []:
+        content = candidate.get("content") or {}
+        parts = content.get("parts") or []
+        texts = [part.get("text", "").strip() for part in parts if part.get("text")]
+        reply = "\n".join(texts).strip()
+        if reply:
+            return reply
+
+    logger.error("Gemini API returned no text payload: %s", json.dumps(data)[:500])
+    raise RuntimeError("Gemini returned no text")
+
+
 @app.route("/api/ask-ai", methods=["POST"])
 def api_ask_ai():
     """Credibility helper using Google News RSS (same as article feed); optional OpenAI to summarize."""
@@ -1514,19 +1680,32 @@ def api_ask_ai():
         headlines_count = len(items)
 
         try:
+            if (os.environ.get("GEMINI_API_KEY") or "").strip():
+                reply = _gemini_news_reply(message, headline, summary, google_block)
+                return jsonify({
+                    "success": True,
+                    "reply": reply,
+                    "mode": "google_news+ai",
+                    "ai_provider": "gemini",
+                    "offer_x_search": offer_x,
+                    "headlines_count": headlines_count,
+                    "x_search_available": apify_ok,
+                    "search_query": search_q,
+                })
             if (os.environ.get("OPENAI_API_KEY") or "").strip():
                 reply = _openai_news_reply(message, headline, summary, google_block)
                 return jsonify({
                     "success": True,
                     "reply": reply,
                     "mode": "google_news+ai",
+                    "ai_provider": "openai",
                     "offer_x_search": offer_x,
                     "headlines_count": headlines_count,
                     "x_search_available": apify_ok,
                     "search_query": search_q,
                 })
         except Exception as e:
-            logger.warning("OpenAI ask-ai failed, using Google News text only: %s", e)
+            logger.warning("AI ask-ai failed, using Google News text only: %s", e)
 
         if search_q:
             reply = _format_google_news_ask_ai_reply(
