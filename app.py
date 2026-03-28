@@ -145,6 +145,50 @@ INTERNATIONAL_NEWS_DOMAINS = [
     "newsvibesofindia.com"
 ]
 
+GLOBAL_NEWS_SOURCES = [
+    # 1. Primary Global Agencies
+    {"domain": "reuters.com", "name": "Reuters", "enabled": True},
+    {"domain": "apnews.com", "name": "Associated Press", "enabled": True},
+    {"domain": "nytimes.com", "name": "The New York Times", "enabled": True},
+    {"domain": "bbc.com", "name": "BBC News", "enabled": True},
+    {"domain": "aljazeera.com", "name": "Al Jazeera", "enabled": True},
+    {"domain": "cnn.com", "name": "CNN", "enabled": True},
+    {"domain": "theguardian.com", "name": "The Guardian", "enabled": True},
+    {"domain": "washingtonpost.com", "name": "The Washington Post", "enabled": True},
+    {"domain": "usatoday.com", "name": "USA Today", "enabled": True},
+    {"domain": "nbcnews.com", "name": "NBC News", "enabled": True},
+    {"domain": "cbsnews.com", "name": "CBS News", "enabled": True},
+    {"domain": "abcnews.go.com", "name": "ABC News", "enabled": True},
+    
+    # 2. Top Indian News Outlets (.com)
+    {"domain": "indiatimes.com", "name": "Times of India", "enabled": True},
+    {"domain": "ndtv.com", "name": "NDTV", "enabled": True},
+    {"domain": "indianexpress.com", "name": "Indian Express", "enabled": True},
+    {"domain": "hindustantimes.com", "name": "Hindustan Times", "enabled": True},
+    {"domain": "thehindu.com", "name": "The Hindu", "enabled": True},
+    {"domain": "livemint.com", "name": "LiveMint", "enabled": True},
+    {"domain": "moneycontrol.com", "name": "MoneyControl", "enabled": True},
+    {"domain": "news18.com", "name": "News18", "enabled": True},
+    {"domain": "india.com", "name": "India.com", "enabled": True},
+    {"domain": "business-standard.com", "name": "Business Standard", "enabled": True},
+    
+    # 3. Specialized & Business News (.com)
+    {"domain": "bloomberg.com", "name": "Bloomberg", "enabled": True},
+    {"domain": "wsj.com", "name": "Wall Street Journal", "enabled": True},
+    {"domain": "ft.com", "name": "Financial Times", "enabled": True},
+    {"domain": "cnbc.com", "name": "CNBC", "enabled": True},
+    {"domain": "economist.com", "name": "The Economist", "enabled": True},
+    {"domain": "forbes.com", "name": "Forbes", "enabled": True},
+    {"domain": "techcrunch.com", "name": "TechCrunch", "enabled": True},
+    {"domain": "wired.com", "name": "Wired", "enabled": True},
+    {"domain": "arstechnica.com", "name": "Ars Technica", "enabled": True},
+    
+    # 4. Fact-Checking Domains (.com)
+    {"domain": "snopes.com", "name": "Snopes", "enabled": True},
+    {"domain": "politifact.com", "name": "PolitiFact", "enabled": True},
+    {"domain": "factcheck.org", "name": "FactCheck.org", "enabled": True}
+]
+
 ############################
 # Local storage (fallback) #
 ############################
@@ -526,7 +570,7 @@ def extract_best_image_from_soup(soup: BeautifulSoup, page_url: str) -> str:
     return ""
 
 
-async def fetch_news(time_range, extract_images=True, city=None):
+async def fetch_news(time_range, extract_images=True, city=None, scope="local"):
     """
     Fetch news via Google News RSS.
 
@@ -545,7 +589,22 @@ async def fetch_news(time_range, extract_images=True, city=None):
         news_sources = get_news_sources()
         enabled_sources = [source["domain"] for source in news_sources if source.get("enabled", True)]
 
-        if not location_mode:
+        if scope == "global":
+            # International news focus
+            query_parts = []
+            for src in GLOBAL_NEWS_SOURCES:
+                domain = src["domain"]
+                clean_domain = domain.replace("https://", "").replace("http://", "").replace("www.", "").rstrip("/")
+                query_parts.append(f"site:{clean_domain}")
+            sources_query = " OR ".join(query_parts)
+            
+            city_q = city_clause_for_news_query(city) if city else ""
+            if city_q:
+                full_q = f"({sources_query}) ({city_q}) when:{when}"
+            else:
+                full_q = f"({sources_query}) when:{when}"
+            logger.info("Google News RSS: Global news feed")
+        elif not location_mode:
             if not enabled_sources:
                 logger.warning("No news sources are enabled")
                 return []
@@ -565,8 +624,12 @@ async def fetch_news(time_range, extract_images=True, city=None):
             full_q = build_location_news_query(city, when)
             logger.info(f"Google News RSS: location feed for city={city!r} q={full_q[:200]}...")
 
+        # For global scope, use US locale for broader results
+        gl_val = "US" if scope == "global" else "IN"
+        ceid_val = "US:en" if scope == "global" else "IN:en"
+        
         rss_url = "https://news.google.com/rss/search?" + urlencode(
-            {"q": full_q, "hl": "en", "gl": "IN", "ceid": "IN:en"}
+            {"q": full_q, "hl": "en", "gl": gl_val, "ceid": ceid_val}
         )
         logger.info(f"Google News RSS request length: {len(rss_url)} chars")
 
@@ -1764,12 +1827,13 @@ def api_news():
     user_choice = request.args.get("filter", "rf")
     time_range = get_time_range(user_choice)
     city = sanitize_city(request.args.get("city"))
+    scope = request.args.get("scope", "local")
     
     # Clean up expired cache entries
     cleanup_cache()
     
     # Check cache first
-    cache_key = f"{user_choice}_{time_range}_{city or ''}"
+    cache_key = f"{user_choice}_{time_range}_{city or ''}_{scope}"
     if cache_key in news_cache:
         cache_time, cached_data = news_cache[cache_key]
         if (datetime.now() - cache_time).total_seconds() < cache_duration:
@@ -1782,7 +1846,7 @@ def api_news():
     
     try:
         # Enable image extraction for better user experience
-        news_data = asyncio.run(fetch_news(time_range, extract_images=True, city=city))
+        news_data = asyncio.run(fetch_news(time_range, extract_images=True, city=city, scope=scope))
         
         # Cache the results
         news_cache[cache_key] = (datetime.now(), news_data)

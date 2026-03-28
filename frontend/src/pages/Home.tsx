@@ -5,6 +5,7 @@ const Home: React.FC = () => {
   const navigate = useNavigate();
   const [city, setCity] = useState('');
   const [filter, setFilter] = useState('rf');
+  const [scope, setScope] = useState('local'); // Added scope state
   const [loading, setLoading] = useState(false);
   const [askAiInput, setAskAiInput] = useState('');
   const [askAiMessages, setAskAiMessages] = useState<any[]>([]);
@@ -34,14 +35,15 @@ const Home: React.FC = () => {
     localStorage.setItem(CITY_STORAGE_KEY, city);
 
     try {
-      const params = new URLSearchParams({ filter });
+      const params = new URLSearchParams({ filter, scope });
       if (city.trim()) params.set('city', city.trim());
       
       const response = await fetch(`/api/news?${params.toString()}`);
       const data = await response.json();
 
       if (data.success) {
-        navigate('/results', { state: { newsData: data.data, city } });
+        const displayCity = city.trim() || (scope === 'global' ? 'Global' : 'Kashmir');
+        navigate('/results', { state: { newsData: data.data, city: displayCity } });
       } else {
         alert('Error: ' + (data.message || 'Failed to fetch news'));
       }
@@ -237,6 +239,17 @@ const Home: React.FC = () => {
                     <option value="dn">Daily Summary</option>
                     <option value="wn">Weekly Review</option>
                     <option value="mn">Monthly Archive</option>
+                  </select>
+                </div>
+                <div className="mb-4">
+                  <label className="form-label">News Scope</label>
+                  <select 
+                    className="form-select"
+                    value={scope}
+                    onChange={(e) => setScope(e.target.value)}
+                  >
+                    <option value="local">Jammu & Kashmir (Local)</option>
+                    <option value="global">International (Global)</option>
                   </select>
                 </div>
                 <button type="submit" className="btn btn-primary w-100" disabled={loading}>
